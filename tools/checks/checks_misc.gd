@@ -56,14 +56,16 @@ func check_ui_kit_and_settings_panel_build():
 	palette.set_accessibility(true, true)
 	var swapped: bool = palette.good != good_before and palette.high_contrast
 	palette.set_accessibility(false, false)
-	var store := SettingsStore.new({"master": 0.5, "muted": true})
+	var store := SettingsStore.new({"master": 0.5, "muted": true, "size": 0.5})
 	store.save_enabled = false
 	store.keys = KeyBindings.new({"jump": "Jump"})
 	store.load_settings()
 	var page := SettingsPanel.new()
 	page.store = store
 	page.ui = ui
-	page.sections = [{"title": "Sound", "sliders": ["master"], "toggles": ["muted"]}]
+	page.sections = [{"title": "Sound", "sliders": ["master", "size"], "toggles": ["muted"]}]
+	page.commit_on_release = ["size"]
+	page.slider_text = func(key: String, value: float) -> String: return "x%.1f" % (value * 2.0) if key == "size" else "%d%%" % roundi(value * 100.0)
 	page.text = func(key: String, english: String) -> String: return english.to_upper() if key == "settings_back" else english
 	var host := Control.new()
 	host.size = Vector2(1280, 720)
@@ -72,6 +74,13 @@ func check_ui_kit_and_settings_panel_build():
 	page.refresh()
 	# Range only emits value_changed inside the tree; emit as a drag would.
 	page.sliders.master.value_changed.emit(80.0)
+	var master_readout: String = page.readouts.master.text
+	page.sliders.size.drag_started.emit()
+	page.sliders.size.value = 90.0
+	page.sliders.size.value_changed.emit(90.0)
+	var size_mid_drag: float = store.values.size
+	var size_readout: String = page.readouts.size.text
+	page.sliders.size.drag_ended.emit(true)
 	var result: String = Expect.all([
 		Expect.truthy(swapped, "accessibility swaps the palette"),
 		Expect.equal(palette.good, good_before, "and swaps back"),
@@ -79,6 +88,9 @@ func check_ui_kit_and_settings_panel_build():
 		Expect.equal(page.close_button.text, "BACK", "words go through the text callable"),
 		Expect.truthy(page.toggles.muted.button_pressed, "toggles show stored values"),
 		Expect.equal(store.values.master, 0.8, "a slider edits the store"),
+		Expect.equal(master_readout, "80%", "a slider reads out its value"),
+		Expect.truthy(size_mid_drag == 0.5 and size_readout == "x1.8", "a release-committed slider only reads out while dragged"),
+		Expect.equal(store.values.size, 0.9, "and commits when the drag ends"),
 		Expect.equal(page.key_buttons.jump[0].text, "Space", "key buttons name their keys"),
 		Expect.truthy(Focus.first_focusable(page) != null, "the page has something to focus"),
 	])

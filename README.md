@@ -54,7 +54,8 @@ $godot = '..\small_following\exports\tooling\Godot_v4.2.2-stable_win64_console.e
 ```
 
 The self-checks cover data rules, catalogs, saves and recovery, bindings,
-settings, synthesis and the settings page's wiring. They run headless, so they
+settings, synthesis, ambience beds, screen shake and the settings page's
+wiring. They run headless, so they
 do not establish how anything looks, sounds, or behaves with real touch,
 gamepads or browsers: verify those in a consuming game.
 

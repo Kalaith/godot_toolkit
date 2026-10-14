@@ -19,6 +19,8 @@ by path; none declares a `class_name`.
 | `core/det.gd` | sim rng picks, stable `sort_custom` | — | `battle_sim.gd` rng |
 | `audio/synth.gd`, `audio/voice_pool.gd` | `audio_director.gd`, `music_director.gd` | `game_audio.gd` cooldowns | — |
 | `audio/levels.gd` | bus volumes in `settings_store.gd` | `game_audio.gd` `_level` | — |
+| `audio/ambience.gd` | — (new) | — | ambience beds |
+| `fx/shake.gd` | — (new) | — | battle screen shake |
 | `ui/palette.gd`, `ui/ui_kit.gd` | `presentation/ui/style.gd` | `ritual_style.gd`, settings styling | `scripts/ui/style.gd` |
 | `ui/screen_switcher.gd`, `ui/focus.gd` | `screens_controller.gd` focus/back | settings `focus_first` | `main.gd` `_swap`/`_back` |
 | `input/pointer_tap.gd` | — | `scripts/village_input.gd` | — |
@@ -151,7 +153,26 @@ Display.set_fullscreen(settings.values.fullscreen)
 plucks, wind, rain, drones), seeded from a caller's rng. **`voice_pool.gd`**:
 a round-robin player pool with per-cue cooldowns that drop excess cues
 instead of queueing them, and a headless-safe mode. **`levels.gd`**: linear
-volume to dB, gain chains, bus creation and setting.
+volume to dB, gain chains, bus creation and setting. **`ambience.gd`**:
+background beds of looping layers (wind over a drone, rain over a hum),
+crossfaded when the bed changes; asking for the bed already on does nothing,
+so screens can request theirs every time they show.
+
+```gdscript
+Levels.ensure_bus("Ambience")
+var ambience := Ambience.new()
+ambience.bus = &"Ambience"
+add_child(ambience)
+var rng := RandomNumberGenerator.new()
+ambience.play_bed("ruins", [{"stream": Synth.wind_loop(rng, 9.0), "db": -16.0},
+    {"stream": Synth.drone_loop(55.0, [1.0, 1.5], 8.0), "db": -24.0, "offset": 0.4}])
+```
+
+## fx
+
+**`shake.gd`**: trauma-based screen shake. Hits `add` trauma, it drains each
+`step(delta)`, and the offset grows with trauma squared; `enabled = false`
+(a "screen shake" setting) keeps the view still. Seeded, never the global rng.
 
 ## ui
 
@@ -173,7 +194,10 @@ static func _palette() -> Palette:
 sections of sliders and toggles, key and pad capture with Esc to cancel, clear
 and reset, PageUp/PageDown and bumpers to change tab, B or `close_action` to
 close, optional Title and Exit (disabled on the web). Each word goes through
-`text: Callable(key, english)`.
+`text: Callable(key, english)`. Each slider reads out its value (a
+percentage, or `slider_text: Callable(key, value)`), and keys listed in
+`commit_on_release` (a UI scale) apply when the drag ends rather than
+resizing the page under the pointer.
 
 **`screen_switcher.gd`**: whole-screen swaps with a Back target per screen
 (spiritwright's `_swap`). **`focus.gd`**: focus the first control on show and

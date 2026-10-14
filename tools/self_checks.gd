@@ -9,4 +9,5 @@ func modules() -> Array[String]:
 		"res://tools/checks/checks_storage.gd",
 		"res://tools/checks/checks_input.gd",
 		"res://tools/checks/checks_misc.gd",
+		"res://tools/checks/checks_fx.gd",
 	]

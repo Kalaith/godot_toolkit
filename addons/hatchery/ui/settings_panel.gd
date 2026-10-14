@@ -49,6 +49,13 @@ var ui: UiKit
 var sections: Array = []
 ## Callable(key: String, english: String) -> String.
 var text: Callable = Callable()
+## Callable(key: String, value: float) -> String for the readout beside each
+## slider (value is the stored 0..1); defaults to a percentage.
+var slider_text: Callable = Callable()
+## Slider keys whose change is committed only when a drag ends (keyboard and
+## gamepad steps still commit at once), e.g. a UI scale that would otherwise
+## resize the page under the pointer mid-drag.
+var commit_on_release: Array = []
 ## Callable(error_code: String) -> String for binding errors; defaults to the
 ## bindings' own English.
 var describe_error: Callable = Callable()
@@ -62,6 +69,7 @@ var tabs: TabContainer
 var notice: Label
 var close_button: Button
 var sliders: Dictionary = {}
+var readouts: Dictionary = {}
 var toggles: Dictionary = {}
 var key_buttons: Dictionary = {}
 var pad_buttons: Dictionary = {}
@@ -69,6 +77,7 @@ var capture_action: String = ""
 var capture_slot: int = 0
 var capture_pad: bool = false
 var _panel: PanelContainer
+var _dragging: String = ""
 
 
 func _ready() -> void:
@@ -130,9 +139,16 @@ func _build_general() -> void:
 			var name_label: Label = ui.label(_t("setting_" + key, str(key).capitalize()))
 			name_label.custom_minimum_size.x = 220
 			row.add_child(name_label)
-			var slider: HSlider = ui.slider(func(value: float) -> void: _set_value(str(key), value))
+			var slider: HSlider = ui.slider(func(value: float) -> void: _slide(str(key), value))
+			slider.drag_started.connect(func() -> void: _dragging = str(key))
+			slider.drag_ended.connect(func(_changed: bool) -> void: _release(str(key)))
 			row.add_child(slider)
 			sliders[key] = slider
+			var readout: Label = ui.utility("", -1, ui.palette.muted)
+			readout.custom_minimum_size.x = 64
+			readout.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			row.add_child(readout)
+			readouts[key] = readout
 			rows.add_child(row)
 		for key in section.get("toggles", []):
 			var toggle: CheckButton = ui.toggle(_t("setting_" + key, str(key).capitalize()), func(on: bool) -> void: _set_value(str(key), on))
@@ -198,6 +214,7 @@ func refresh() -> void:
 		return
 	for key in sliders:
 		sliders[key].set_value_no_signal(float(store.values[key]) * 100.0)
+		readouts[key].text = _slider_text(str(key), float(store.values[key]))
 	for key in toggles:
 		toggles[key].set_pressed_no_signal(bool(store.values[key]))
 	for action in key_buttons:
@@ -214,6 +231,26 @@ func cancel_capture() -> void:
 	if notice != null:
 		notice.text = ""
 	refresh()
+
+
+## Sliders on `commit_on_release` only show the value while dragged.
+func _slide(key: String, value: float) -> void:
+	if _dragging == key and commit_on_release.has(key):
+		readouts[key].text = _slider_text(key, value)
+	else:
+		_set_value(key, value)
+
+
+func _release(key: String) -> void:
+	_dragging = ""
+	if commit_on_release.has(key):
+		_set_value(key, sliders[key].value / 100.0)
+
+
+func _slider_text(key: String, value: float) -> String:
+	if slider_text.is_valid():
+		return str(slider_text.call(key, value))
+	return "%d%%" % roundi(value * 100.0)
 
 
 func _set_value(key: String, value: Variant) -> void:
