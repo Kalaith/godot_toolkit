@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$ProjectDir = $PSScriptRoot,
-    [string]$ToolkitDir = (Join-Path $PSScriptRoot '..\godot_toolkit'),
+    [string]$ProjectDir = '',
+    [string]$ToolkitDir = '',
     [ValidateSet('all', 'html5', 'windows')][string]$Channel = 'all',
     [string]$ButlerPath = '',
     [string]$UserVersion = '',
@@ -12,6 +12,9 @@ param(
 )
 # A game's publish-itch.ps1: copy beside project.godot.
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 leaves $PSScriptRoot empty in param defaults.
+if (-not $ProjectDir) { $ProjectDir = $PSScriptRoot }
+if (-not $ToolkitDir) { $ToolkitDir = Join-Path $PSScriptRoot '..\godot_toolkit' }
 . (Join-Path $ToolkitDir 'publishing/Publisher.ps1')
 if ($Help) {
     Write-Host 'publish-itch.ps1 [-Channel all|html5|windows] [-Preview | -Status | -DryRun] [-ButlerPath path] [-UserVersion version] [-ProjectDir path] [-ToolkitDir path]'

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$ProjectDir = $PSScriptRoot,
-    [string]$ToolkitDir = (Join-Path $PSScriptRoot '..\godot_toolkit'),
+    [string]$ProjectDir = '',
+    [string]$ToolkitDir = '',
     [string]$GodotExe = '',
     [string]$EnvFile = 'D:\WebHatchery\.env',
     [string]$DeployRoot = '',
@@ -16,6 +16,9 @@ param(
 # A game's publish.ps1: copy beside project.godot. The work lives in the
 # shared godot_toolkit publisher; this file only parses the options.
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 leaves $PSScriptRoot empty in param defaults.
+if (-not $ProjectDir) { $ProjectDir = $PSScriptRoot }
+if (-not $ToolkitDir) { $ToolkitDir = Join-Path $PSScriptRoot '..\godot_toolkit' }
 . (Join-Path $ToolkitDir 'publishing/Publisher.ps1')
 if ($Help) {
     Write-Host 'publish.ps1 [-Preview | -Production (-p) | -FTP] [-BuildOnly] [-SkipBuild] [-DryRun] [-GodotExe path] [-EnvFile path] [-DeployRoot path] [-ProjectDir path] [-ToolkitDir path]'
