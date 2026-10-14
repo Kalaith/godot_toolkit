@@ -98,6 +98,8 @@ func _ready() -> void:
 	_build_general()
 	if store.keys != null or store.pad != null:
 		_build_controls()
+	# A page with no Controls tab needs no tab bar.
+	tabs.tabs_visible = tabs.get_tab_count() > 1
 	notice = ui.wrapped("", -1, ui.palette.accent)
 	notice.custom_minimum_size.y = 28
 	body.add_child(notice)

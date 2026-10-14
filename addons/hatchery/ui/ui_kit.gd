@@ -136,12 +136,22 @@ func button(value: String, callback: Callable = Callable(), primary: bool = fals
 	return node
 
 
+## A labelled switch. Its row looks the same on and off (the switch shows the
+## state), so a switched-on row is never mistaken for the focused one.
 func toggle(value: String, callback: Callable = Callable(), size: int = -1) -> CheckButton:
 	var node := CheckButton.new()
 	node.text = value
 	node.focus_mode = Control.FOCUS_ALL
 	node.custom_minimum_size.y = palette.control_height
 	node.add_theme_font_size_override("font_size", palette.body_size + 1 if size < 0 else size)
+	node.add_theme_stylebox_override("normal", box(Color(palette.button_fill, 0.0), Color(0, 0, 0, 0), palette.radius, 10))
+	node.add_theme_stylebox_override("pressed", box(Color(palette.button_fill, 0.0), Color(0, 0, 0, 0), palette.radius, 10))
+	node.add_theme_stylebox_override("hover", box(Color(palette.button_fill, 0.6), Color(0, 0, 0, 0), palette.radius, 10))
+	node.add_theme_stylebox_override("hover_pressed", box(Color(palette.button_fill, 0.6), Color(0, 0, 0, 0), palette.radius, 10))
+	node.add_theme_stylebox_override("focus", box(Color(0, 0, 0, 0), palette.accent, palette.radius, 10))
+	for state in ["font_color", "font_pressed_color", "font_hover_pressed_color"]:
+		node.add_theme_color_override(state, palette.text)
+	node.add_theme_color_override("font_hover_color", Color.WHITE)
 	if callback.is_valid():
 		node.toggled.connect(callback)
 	return node
