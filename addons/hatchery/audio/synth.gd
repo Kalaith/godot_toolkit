@@ -47,26 +47,26 @@ static func pluck(hz: float, seconds: float = 2.4, decay: float = 1.6, peak: flo
 ## (0..1) is how heavily the noise is filtered; smaller is softer.
 static func wind_loop(rng: RandomNumberGenerator, seconds: float = 4.0, smooth: float = 0.02, peak: float = 0.37) -> AudioStreamWAV:
 	var count: int = int(seconds * RATE)
-	var data := PackedByteArray()
-	data.resize(count * 2)
+	var values := PackedFloat32Array()
+	values.resize(count + _seam_length(count))
 	var low: float = 0.0
-	for i in range(count):
+	for i in range(values.size()):
 		low = lerpf(low, rng.randf_range(-1.0, 1.0), smooth)
 		var swell: float = 0.55 + 0.45 * sin(TAU * float(i) / count)
-		data.encode_s16(i * 2, _sample(low * swell * 3.0, peak))
-	return stream(data, true)
+		values[i] = low * swell * 3.0
+	return _seamless(values, count, peak)
 
 
 ## High-passed noise: rain, surf, static.
 static func hiss_loop(rng: RandomNumberGenerator, seconds: float = 4.0, peak: float = 0.27) -> AudioStreamWAV:
 	var count: int = int(seconds * RATE)
-	var data := PackedByteArray()
-	data.resize(count * 2)
+	var values := PackedFloat32Array()
+	values.resize(count + _seam_length(count))
 	var high: float = 0.0
-	for i in range(count):
+	for i in range(values.size()):
 		high = rng.randf_range(-1.0, 1.0) - high * 0.4
-		data.encode_s16(i * 2, _sample(high * 0.5, peak))
-	return stream(data, true)
+		values[i] = high * 0.5
+	return _seamless(values, count, peak)
 
 
 ## A sustained chord of `ratios` over `root_hz`, with a slow tremolo; loops
@@ -104,6 +104,25 @@ static func stream(data: PackedByteArray, loop: bool = false) -> AudioStreamWAV:
 		result.loop_mode = AudioStreamWAV.LOOP_FORWARD
 		result.loop_end = data.size() / 2
 	return result
+
+
+## Noise loops run a little past their length; the overrun is faded over the
+## loop's start, so the end flows into the start without a click.
+static func _seam_length(count: int) -> int:
+	return mini(int(RATE * 0.25), count / 4)
+
+
+static func _seamless(values: PackedFloat32Array, count: int, peak: float) -> AudioStreamWAV:
+	var fade: int = values.size() - count
+	var data := PackedByteArray()
+	data.resize(count * 2)
+	for i in range(count):
+		var value: float = values[i]
+		if i < fade:
+			var blend: float = float(i) / fade
+			value = value * blend + values[count + i] * (1.0 - blend)
+		data.encode_s16(i * 2, _sample(value, peak))
+	return stream(data, true)
 
 
 static func _sample(value: float, peak: float) -> int:

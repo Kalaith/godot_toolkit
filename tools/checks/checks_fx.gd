@@ -6,6 +6,21 @@ const Synth = preload("res://addons/hatchery/audio/synth.gd")
 const Expect = preload("res://addons/hatchery/testing/expect.gd")
 
 
+func check_noise_loops_have_no_seam():
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var seam_fits := func(wav: AudioStreamWAV) -> bool:
+		var count: int = wav.data.size() / 2
+		var largest_step: int = 0
+		for i in range(1, count):
+			largest_step = maxi(largest_step, absi(wav.data.decode_s16(i * 2) - wav.data.decode_s16(i * 2 - 2)))
+		return absi(wav.data.decode_s16(0) - wav.data.decode_s16(count * 2 - 2)) <= largest_step
+	return Expect.all([
+		Expect.truthy(seam_fits.call(Synth.wind_loop(rng, 1.0, 0.01)), "wind wraps no harder than it moves"),
+		Expect.truthy(seam_fits.call(Synth.hiss_loop(rng, 1.0)), "hiss wraps no harder than it moves"),
+	])
+
+
 func check_ambience_switches_beds_once():
 	var rng := RandomNumberGenerator.new()
 	var wind: AudioStreamWAV = Synth.wind_loop(rng, 0.5)
