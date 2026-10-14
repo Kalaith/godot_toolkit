@@ -1,0 +1,26 @@
+; The toolkit's own project: only for parse checks and the self-checks in
+; tools/. It is not a game and is never exported. The input actions below
+; exist for the binding checks.
+
+config_version=5
+
+[application]
+
+config/name="Hatchery Godot Toolkit"
+config/features=PackedStringArray("4.2", "GL Compatibility")
+
+[input]
+
+jump={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":32), Object(InputEventJoypadButton,"button_index":0)]
+}
+interact={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":69), Object(InputEventKey,"physical_keycode":70), Object(InputEventJoypadButton,"button_index":2)]
+}
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
