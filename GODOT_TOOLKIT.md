@@ -28,8 +28,12 @@ by path; none declares a `class_name`.
 | `testing/capture_runner.gd` | `presentation/capture*.gd` | — | `tools/capture.gd` |
 | `publishing/Publisher.ps1` | `tools/publishing/Publisher.ps1` | `tools/publishing/Publisher.ps1` | `tools/publishing/Publisher.ps1` |
 
-The games have not been changed to use the toolkit. Adopting it is per game
-and per module; nothing here requires adopting everything.
+bound_god uses publishing, balance, the text catalog, JSON and data-rule
+helpers, bindings and the settings store, the slot store, synth and voice
+pool, and the check runner; it keeps its own UI style, settings screen,
+captures and simulation randomness. small_following and spiritwright have not
+been changed. Adopting it is per game and per module; nothing here requires
+adopting everything.
 
 ## Ownership rules
 
@@ -108,7 +112,9 @@ if not save.save_data(snapshot()): notice(save.last_error)
 no good backup turn saving off for the session instead of starting fresh.
 
 **`slot_store.gd`**: multi-file saves in one folder per slot (bound_god's
-world saves), staged so a failure leaves the previous save whole.
+world saves), staged so a failure leaves the previous save whole. Files added
+after older saves were written go in `optional`: absent ones are skipped,
+damaged ones still fail the read.
 
 ## input
 

@@ -14,6 +14,9 @@ const AtomicFile = preload("res://addons/hatchery/storage/atomic_file.gd")
 var root: String
 ## Every file a complete save holds; the first is the slot's marker.
 var files: Array[String]
+## Files a save may lack (added after older saves were written): `read` skips
+## one with no file and no backup, but a damaged one still fails the read.
+var optional: Array[String] = []
 var last_error: String = ""
 
 
@@ -67,15 +70,18 @@ func write(slot: String, payload: Dictionary) -> bool:
 	return true
 
 
-## File name -> PackedByteArray for every file in `files`, each accepted by
-## `valid` (Callable(name: String, bytes: PackedByteArray) -> bool) from the
-## file or its backup. {} when any file is unusable.
+## File name -> PackedByteArray for every file in `files` (and each present
+## `optional` file), each accepted by `valid` (Callable(name: String,
+## bytes: PackedByteArray) -> bool) from the file or its backup. {} when any
+## file is unusable.
 func read(slot: String, valid: Callable) -> Dictionary:
 	last_error = ""
 	var base: String = folder(slot)
 	var result: Dictionary = {}
-	for name in files:
+	for name in files + optional:
 		var path: String = base + name
+		if name in optional and not FileAccess.file_exists(path) and not FileAccess.file_exists(path + AtomicFile.BAK):
+			continue
 		var found: Dictionary = AtomicFile.read_with_backup(path, func(bytes: PackedByteArray) -> bool: return valid.call(name, bytes))
 		if found.is_empty():
 			AtomicFile.preserve(path, AtomicFile.CORRUPT)
@@ -90,6 +96,6 @@ func read(slot: String, valid: Callable) -> Dictionary:
 
 func delete(slot: String) -> void:
 	var base: String = folder(slot)
-	for name in files:
+	for name in files + optional:
 		AtomicFile.remove_all(base + name)
 	DirAccess.remove_absolute(base)

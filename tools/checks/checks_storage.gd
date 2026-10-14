@@ -125,6 +125,30 @@ func check_slot_store_writes_reads_and_recovers():
 	])
 
 
+func check_slot_store_optional_files():
+	var worlds := SlotStore.new("user://checks/worlds/", ["meta.json"])
+	worlds.optional = ["regions.bin"]
+	worlds.delete("old")
+	worlds.delete("new")
+	var accept := func(_name: String, bytes: PackedByteArray) -> bool: return bytes.size() > 0 and bytes[0] != 0
+	worlds.write("old", {"meta.json": "{}".to_utf8_buffer()})
+	worlds.write("new", {"meta.json": "{}".to_utf8_buffer(), "regions.bin": PackedByteArray([5])})
+	var old: Dictionary = worlds.read("old", accept)
+	var new: Dictionary = worlds.read("new", accept)
+	var file := FileAccess.open(worlds.folder("new") + "regions.bin", FileAccess.WRITE)
+	file.store_buffer(PackedByteArray([0]))
+	file.close()
+	DirAccess.remove_absolute(worlds.folder("new") + "regions.bin.bak")
+	var damaged: Dictionary = worlds.read("new", accept)
+	worlds.delete("old")
+	worlds.delete("new")
+	return Expect.all([
+		Expect.truthy(old.has("meta.json") and not old.has("regions.bin"), "an older save without the file still reads"),
+		Expect.equal(new.get("regions.bin"), PackedByteArray([5]), "a present optional file is read"),
+		Expect.truthy(damaged.is_empty(), "a damaged optional file fails the read"),
+	])
+
+
 func check_atomic_write_reads_back():
 	var path: String = Expect.scratch_path("atomic.bin")
 	var error: String = AtomicFile.write(path, PackedByteArray([7, 8, 9]))

@@ -49,3 +49,10 @@ This folder is the shared library for WebHatchery's Godot games, not a game.
 Commit after each complete, working step. Message style: one present-tense
 line describing what changed for the games that use it, then a short plain
 tag in parentheses, e.g. `Every game's saves now survive a torn write (json save)`.
+
+## File size limit (hard rule)
+
+- **No `.gd` file may exceed 800 lines.** Check with `wc -l scripts/*.gd` before every commit.
+- When a change would push a file past 800 lines, or a file is already over, **refactor it below 800 in the same change**: move a cohesive responsibility (HUD, settings wiring, area building, save validation, layout, etc.) into its own script and have the original delegate to it.
+- **Never shrink a file by deleting blank lines, joining statements, removing comments or otherwise compressing formatting.** Blank lines between functions and the existing comment density stay as they are. Line count must come down by moving code, not by squeezing it.
+- Keep public members that other scripts use (for example `main.gd`'s `player` and `village_tap_available`) working, either in place or through a delegating function.
