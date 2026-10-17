@@ -41,6 +41,8 @@ read the game's existing `publish.json`.
 
 - [Module guide](GODOT_TOOLKIT.md): every module, what it replaces in the
   existing games, and integration examples.
+- [Godot promo capture](tools/promo/README.md): shared capture driver and notes
+  for making any Godot game easy to stage in Promoter.
 - [Agent instructions](AGENTS.md): rules for changing the toolkit.
 
 ## Validation
