@@ -1,22 +1,29 @@
 extends SceneTree
 ## Shared capture driver for any Godot 4 project. It loads the configured main
-## scene, applies optional InputMap actions, and writes viewport frames per shot.
+## scene off-screen and samples real-time gameplay with bounded background encoding.
 
 const DEFAULT_FPS: int = 30
 
 var _plan_path: String = ""
 var _output_dir: String = ""
 var _failures: int = 0
+var _jobs: Array[Dictionary] = []
 
 
 func _init() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
-	if args.size() != 2:
-		push_error("Expected user arguments: <plan.json> <capture-output-dir>")
+	if args.size() != 3 or args[2] != "--promo-background":
+		push_error("Launch with Promoter record_game.py: <plan.json> <capture-output-dir> --promo-background")
+		quit(2)
+		return
+	if not bool(ProjectSettings.get_setting("promotion/background_capture_safe", false)):
+		push_error("This game has not declared background-safe pointer handling. Capture refused.")
 		quit(2)
 		return
 	_plan_path = args[0]
 	_output_dir = args[1]
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_NO_FOCUS, true)
+	DisplayServer.window_set_position(Vector2i(-10000, -10000))
 	_run.call_deferred()
 
 
@@ -61,8 +68,19 @@ func _run() -> void:
 
 	var main_scene: Node = (main_scene_resource as PackedScene).instantiate()
 	root.add_child(main_scene)
-	await _frames(settle_frames)
+	current_scene = main_scene
+	await process_frame
+	await process_frame
+	var setup_releases: Array[String] = []
+	for action in plan.get("setupActions", []):
+		_apply_action(action, setup_releases)
+	await process_frame
+	for action_name in setup_releases:
+		Input.action_release(action_name)
+	await create_timer(maxf(float(settle_frames) / fps, 0.001)).timeout
 
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	Engine.max_fps = 60
 	for shot_value in shots:
 		if typeof(shot_value) != TYPE_DICTIONARY:
 			_failures += 1
@@ -99,22 +117,8 @@ func _run() -> void:
 				actions_by_frame[frame] = []
 			actions_by_frame[frame].append(action)
 
-		var auto_release_actions: Array[String] = []
-		for frame in range(frame_count):
-			for action_name in auto_release_actions:
-				Input.action_release(action_name)
-			auto_release_actions.clear()
-			if actions_by_frame.has(frame):
-				for action in actions_by_frame[frame]:
-					_apply_action(action, auto_release_actions)
-			await RenderingServer.frame_post_draw
-			var image: Image = root.get_texture().get_image()
-			if image.save_png(shot_dir.path_join("%05d.png" % frame)) != OK:
-				_failures += 1
-				push_error("Could not save frame %d for shot %s." % [frame, shot_name])
-		for action_name in auto_release_actions:
-			Input.action_release(action_name)
-		print("GODOT PROMO SHOT %s: %d frames" % [shot_name, frame_count])
+		await _record_shot(shot_dir, seconds, fps, actions_by_frame)
+
 
 	print("GODOT PROMO CAPTURE COMPLETE: %d failures" % _failures)
 	quit(0 if _failures == 0 else 1)
@@ -155,6 +159,84 @@ func _apply_action(action: Dictionary, auto_release_actions: Array[String]) -> v
 		push_error("Unsupported promo action type: %s" % kind)
 
 
-func _frames(count: int) -> void:
-	for _index in range(count):
+## Disable VSync only in this isolated run: waiting for presentation during GPU
+## readback was stalling the game. Encoding/disk writes use at most two workers;
+## if overloaded, skip a capture slot instead of blocking or growing a queue.
+func _record_shot(directory: String, seconds: float, fps: int, actions: Dictionary) -> void:
+	var releases: Array[String] = []
+	var frame_count: int = roundi(seconds * fps)
+	var previous_slot: int = -1
+	var samples: Array[int] = []
+	var readback_usec: int = 0
+	var start_frames: int = Engine.get_process_frames()
+	var start: int = Time.get_ticks_usec()
+	var last_frame: int = start
+	var longest_frame: int = 0
+	while true:
 		await process_frame
+		var now: int = Time.get_ticks_usec()
+		longest_frame = maxi(longest_frame, now - last_frame)
+		last_frame = now
+		for action_name in releases:
+			Input.action_release(action_name)
+		releases.clear()
+		var elapsed: float = (Time.get_ticks_usec() - start) / 1000000.0
+		if elapsed >= seconds:
+			break
+		var slot: int = mini(int(elapsed * fps), frame_count - 1)
+		if slot <= previous_slot:
+			continue
+		for due in range(previous_slot + 1, slot + 1):
+			for action in actions.get(due, []):
+				_apply_action(action, releases)
+		previous_slot = slot
+		await RenderingServer.frame_post_draw
+		_collect_jobs(false)
+		if _jobs.size() >= 2:
+			continue
+		var before: int = Time.get_ticks_usec()
+		var image: Image = root.get_texture().get_image()
+		readback_usec += Time.get_ticks_usec() - before
+		var result: Dictionary = {"error": OK}
+		var task: int = WorkerThreadPool.add_task(_save_frame.bind(image, directory.path_join("%05d.jpg" % slot), result))
+		_jobs.append({"task": task, "result": result})
+		samples.append(slot)
+	var elapsed_seconds: float = (Time.get_ticks_usec() - start) / 1000000.0
+	var game_fps: float = (Engine.get_process_frames() - start_frames) / elapsed_seconds
+	_collect_jobs(true)
+	if samples.is_empty():
+		_failures += 1
+		push_error("No frames captured for %s" % directory)
+	_write_report(directory.path_join("capture.json"), {
+		"schemaVersion": 1, "samples": samples,
+		"readbackMeanMs": readback_usec / 1000.0 / maxi(samples.size(), 1), "seconds": seconds,
+		"elapsedSeconds": elapsed_seconds, "fps": fps, "frameCount": frame_count,
+		"gameFps": game_fps, "maxFrameMs": longest_frame / 1000.0,
+	})
+	print("GODOT PROMO SHOT %s: %.3fs, %.1f game fps" % [directory.get_file(), elapsed_seconds, game_fps])
+
+
+func _write_report(path: String, report: Dictionary) -> void:
+	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		_failures += 1
+		push_error("Cannot write capture report: %s" % path)
+		return
+	file.store_string(JSON.stringify(report, "\t") + "\n")
+
+
+func _save_frame(image: Image, path: String, result: Dictionary) -> void:
+	result.error = image.save_jpg(path, 0.95)
+
+
+func _collect_jobs(wait_all: bool) -> void:
+	for index in range(_jobs.size() - 1, -1, -1):
+		var job: Dictionary = _jobs[index]
+		if not wait_all and not WorkerThreadPool.is_task_completed(job.task):
+			continue
+		WorkerThreadPool.wait_for_task_completion(job.task)
+		if int(job.result.error) != OK:
+			_failures += 1
+			push_error("Could not write a promo frame (error %s)." % job.result.error)
+		_jobs.remove_at(index)

@@ -2,7 +2,7 @@
 
 `capture_promo.gd` is the shared Godot 4 driver used by WebHatchery Promoter.
 Promoter launches it against a selected game's project, loads that project's
-configured main scene, follows a JSON shot plan, and saves viewport frames.
+configured main scene, follows a JSON shot plan, and samples gameplay off-screen with bounded background image encoding.
 The FFmpeg renderer, captions, update coverage and final video stay in
 Promoter. Games do not need a copied driver, plugin, or project-specific
 capture tool.
@@ -14,7 +14,9 @@ capture tool.
 - A list of timed shots with a caption and stable feature IDs.
 - `InputMap` action presses, releases and taps, plus mouse clicks at viewport
   coordinates.
-- A fixed frame rate and an initial settle period before the shots begin.
+- Real-time input scheduling, optional `setupActions`, and an initial settle period before the shots begin.
+- An off-screen, non-focused window; capture-only VSync disabling and a 60 FPS game cap.
+- At most two JPEG encoding jobs, so encoding and disk writes cannot block the game thread.
 
 The shot plan and project-relative source file list are kept in Promoter's
 ignored `data/media/godot/<project-key>/promo/` folder. The shared driver is
@@ -70,3 +72,9 @@ $plan = Join-Path $promoter 'data\media\godot\my-game\promo\plan-001.json'
 
 Python 3, FFmpeg and ffprobe are also required. Promos remain drafts; the
 capture workflow does not approve or publish them.
+
+## Capture protocol
+
+Launch through the current Promoter `scripts/godot-promo.ps1`. Direct legacy two-argument driver calls are no longer supported: the driver requires `--promo-background` and the launcher creates a private Windows desktop. Both toolkit and Promoter must be updated together. Games must declare `promotion/background_capture_safe=true` only after their mouse-mode writes are guarded against physical capture in promo mode. The driver fails closed without that declaration. Bound God has adopted this; other games need equivalent pointer handling before using the background driver. Normal game settings are unchanged.
+
+The driver loads the main scene as `current_scene`, allowing normal title-to-game transitions. Setup inputs and settling run before recording. Shots use wall-clock input timing and sample slots, save JPEGs asynchronously, and write schema-1 `capture.json` reports with sample indices and performance measurements. GPU readback stays on the main thread, but VSync is disabled in this isolated process to avoid waiting on presentation; encoding and disk I/O run in bounded workers. The game is capped at 60 FPS. Promoter resamples completed shots afterward, reports repeated frames and rejects long stalls. Its launcher owns timeout cleanup, output logging and private-desktop lifecycle; see its adapter README for details.
