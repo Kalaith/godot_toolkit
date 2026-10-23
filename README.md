@@ -37,6 +37,32 @@ beside the game's `project.godot`. They dot-source
 `../godot_toolkit/publishing/Publisher.ps1` (override with `-ToolkitDir`), and
 read the game's existing `publish.json`.
 
+## Standard project layout
+
+Every game has the same shape, so scripts, agents and people can move between
+them. `tools/Sync-Project.ps1 -ProjectDir ..\my_game` (add `-DryRun` to preview)
+brings a game's boilerplate in line; it never touches code, scenes, data or art.
+
+```
+<game>/
+  AGENTS.md  README.md            the only markdown at the root
+  project.godot  export_presets.cfg
+  publish.json                    slug, display name, itch target, channels
+  publish.ps1  publish-itch.ps1  Run.ps1   copies of templates/ (Sync-Project overwrites)
+  .editorconfig  .gitattributes  .gitignore
+  addons/hatchery/                junction to this toolkit (ignored by Git)
+  assets/  data/  scenes/  scripts/
+  tools/                          headless checks, capture.gd, reports (kept out of exports)
+  docs/                           .gdignore'd: GAME_DESIGN.md, PROGRESS.md/TODO.md/plans, reference/, art/
+  docs/verification/              .gdignore'd: the one folder for verification images
+  builds/  exports/               generated, ignored (publish output, promo captures)
+```
+
+Verification images go in `docs/verification/`, flat, as stable `<label>.png`
+(see `testing/capture_paths.gd`; `testing/capture_runner.gd` writes there by
+default). Recapturing a screen overwrites its file; there are no subfolders,
+timestamps or size suffixes.
+
 ## Documentation
 
 - [Module guide](GODOT_TOOLKIT.md): every module, what it replaces in the

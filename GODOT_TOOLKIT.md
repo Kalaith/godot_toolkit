@@ -27,7 +27,7 @@ by path; none declares a `class_name`.
 | `draw/shapes.gd` | — | `scripts/draw_shapes.gd` | map/golem drawing |
 | `settings/display.gd` | fullscreen toggle, UI scale | fullscreen, web exit | — |
 | `testing/check_runner.gd`, `testing/expect.gd` | `tools/sim_checks.gd` | — (no tests by policy) | `tools/sim_checks.gd` |
-| `testing/capture_runner.gd` | `presentation/capture*.gd` | — | `tools/capture.gd` |
+| `testing/capture_runner.gd`, `testing/capture_paths.gd` | `presentation/capture*.gd` | — | `tools/capture.gd` |
 | `publishing/Publisher.ps1` | `tools/publishing/Publisher.ps1` | `tools/publishing/Publisher.ps1` | `tools/publishing/Publisher.ps1` |
 
 bound_god uses publishing, balance, the text catalog, JSON and data-rule
@@ -222,7 +222,10 @@ func modules() -> Array[String]:
 
 **`expect.gd`**: `all`, `truthy`, `equal`, `near`, `contains`,
 `deterministic(run, seed)`, `scratch_path(name)`. **`capture_runner.gd`**:
-scripted screenshot tours (`open_scene`, `frames`, `seconds`, `shot`).
+scripted screenshot tours (`open_scene`, `frames`, `seconds`, `shot`), writing
+flat `<name>.png` files to `docs/verification/`. **`capture_paths.gd`**:
+`CapturePaths.file(label)` is that folder's one path rule, for captures made
+outside the runner.
 
 ## publishing
 

@@ -32,7 +32,7 @@ Every game's saves now survive a torn write (json save)
 
 ## Shared WebHatchery Godot standards
 
-This section is identical in the AGENTS.md of every WebHatchery Godot project (`bound_god`, `small_following`, `spiritwright`, `godot_toolkit`). Change it in all four together; project-specific rules go in the sections above.
+This section is identical in the AGENTS.md of every WebHatchery Godot project (`auto_resolved`, `azure_dreams`, `bound_god`, `personal_best`, `small_following`, `spiritwright`, `godot_toolkit`). Change it in all seven together; project-specific rules go in the sections above.
 
 ### Working
 
@@ -58,6 +58,13 @@ This section is identical in the AGENTS.md of every WebHatchery Godot project (`
 - Checks do not gate commits. Run the full set (the project's checks, if any, and a parse/import check with `--headless --editor --quit`) when a major feature or milestone is finished, and fix what they find before calling it done.
 - Headless checks do not verify visuals, audio, input or feel. Verify anything visual by running the game (`Run.ps1`) and looking at it.
 - Say plainly what was and was not checked.
+
+### Verification images
+
+- There is one folder for verification images: `docs/verification/`, flat. It holds a `.gdignore` (so does `docs/`); keep both. Reference art goes in `docs/reference/` or `docs/art/`, never here.
+- Take screenshots through the toolkit's capture runner (`testing/capture_runner.gd`) or `testing/capture_paths.gd` (`CapturePaths.file(label)`). Do not pass an output directory or write captures anywhere else (`builds/`, `exports/`, OS temp, `user://`).
+- Names are stable `<label>.png`: no subfolders, timestamps, run or revision suffixes, size suffixes, `-final`/`-fix` variants or backup copies. A new capture of the same screen or state overwrites its file; add a label only for a genuinely new screen or state.
+- Capture at one window size and one UI scale per game, and look at the image before saying a visual change works.
 
 ### Size limits (hard rule)
 

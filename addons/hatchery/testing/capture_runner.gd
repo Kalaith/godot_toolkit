@@ -11,9 +11,16 @@ extends SceneTree
 ##         await seconds(1.5)
 ##         await shot("02_map")
 ##
-## Run: godot --path . --script res://tools/capture.gd -- [output dir] [--size=1280x720]
+## Run: godot --path . --script res://tools/capture.gd -- [--size=1280x720]
+##
+## Shots are written flat to the game's docs/verification/ (see capture_paths.gd)
+## as stable `<name>.png`, overwriting the previous capture of the same screen.
+## A game does not pass an output directory; one is accepted only for checks of
+## this runner itself.
 
-var out_dir: String = "user://captures"
+const CapturePaths = preload("res://addons/hatchery/testing/capture_paths.gd")
+
+var out_dir: String = CapturePaths.directory()
 var shots: Array[String] = []
 
 

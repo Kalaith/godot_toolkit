@@ -11,6 +11,7 @@ const SettingsStore = preload("res://addons/hatchery/settings/settings_store.gd"
 const KeyBindings = preload("res://addons/hatchery/input/key_bindings.gd")
 const Focus = preload("res://addons/hatchery/ui/focus.gd")
 const Expect = preload("res://addons/hatchery/testing/expect.gd")
+const CapturePaths = preload("res://addons/hatchery/testing/capture_paths.gd")
 
 
 func check_synth_is_seeded_and_loops():
@@ -96,3 +97,8 @@ func check_ui_kit_and_settings_panel_build():
 	])
 	host.free()
 	return result
+
+
+func check_capture_paths_are_flat():
+	var path: String = CapturePaths.file("01_title")
+	return Expect.truthy(path.ends_with("/docs/verification/01_title.png"), "captures land flat in docs/verification")
