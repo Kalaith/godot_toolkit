@@ -12,7 +12,7 @@ extends Node
 
 @export var voices: int = 6
 @export var bus: StringName = &"Master"
-## Godot 4.2's headless dummy driver keeps unconsumed playback instances, so
+## Godot's headless dummy driver keeps unconsumed playback instances, so
 ## headless runs schedule cues (counted in `played`) without playing them.
 var output_enabled: bool = DisplayServer.get_name() != "headless"
 ## Cues started, per cue name given to play_limited (for checks and captions).

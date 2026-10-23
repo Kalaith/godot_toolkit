@@ -18,7 +18,7 @@ const SILENT_DB: float = -80.0
 @export var bus: StringName = &"Master"
 ## Seconds to fade a bed in and the previous one out.
 @export var fade_seconds: float = 1.5
-## Godot 4.2's headless dummy driver keeps unconsumed playback instances, so
+## Godot's headless dummy driver keeps unconsumed playback instances, so
 ## headless runs track beds without playing them.
 var output_enabled: bool = DisplayServer.get_name() != "headless"
 ## The bed on now ("" when silent).

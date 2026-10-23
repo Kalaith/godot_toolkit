@@ -42,7 +42,7 @@ This section is identical in the AGENTS.md of every WebHatchery Godot project (`
 
 ### Code
 
-- Godot **4.2.2** GDScript. The renderer is set per project (see above).
+- Godot **4.7.2** GDScript. The renderer is set per project (see above).
 - Static typing everywhere: variables, parameters and return types.
 - Load dependencies with `const X = preload("res://...")`.
 - Tabs, LF, UTF-8, final newline (`.editorconfig`).

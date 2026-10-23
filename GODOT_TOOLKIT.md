@@ -233,8 +233,8 @@ inferred from `itch_channels` when absent) and `executable` (inferred from
 Windows-only games deploy their ZIP and a page from `download.html`. A game's
 own `tools/publishing/web.htaccess` or `download.html` overrides the shared
 one. A `licences/` folder ships beside the executable. The standard Godot
-editor is found from `-GodotExe`, `GODOT_EXE`, or any sibling game's
-`exports/tooling/`.
+editor is found from `-GodotExe`, `GODOT_EXE`, or the installed copy in
+`C:\Program Files\Godot`.
 
 ## Suggested adoption order
 

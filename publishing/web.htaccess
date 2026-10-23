@@ -1,4 +1,4 @@
-# Godot 4.2 requires SharedArrayBuffer on HTTPS (or localhost).
+# Godot web exports require SharedArrayBuffer on HTTPS (or localhost).
 DirectoryIndex index.html
 AddType application/wasm .wasm
 Header always set Cross-Origin-Opener-Policy "same-origin"
