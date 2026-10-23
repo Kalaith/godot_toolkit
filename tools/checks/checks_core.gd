@@ -71,6 +71,7 @@ func check_text_catalog_fills_overlays_and_reports():
 	var pseudo: String = text.label("bye")
 	return Expect.all([
 		Expect.equal(english, "Hello Ana", "placeholders fill"),
+		Expect.equal(TextCatalog.fill("{a} {b} {c}", {"a": 40.0, "b": 0.5, "c": 7}), "40 0.5 7", "whole floats print without .0"),
 		Expect.equal(problems.size(), 1, "a key defined twice is reported"),
 		Expect.equal(french, "Bonjour Ana", "a locale overlays known keys"),
 		Expect.falsy(text.has("stray"), "a locale cannot add keys"),

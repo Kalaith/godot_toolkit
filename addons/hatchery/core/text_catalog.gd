@@ -108,8 +108,16 @@ func _load() -> void:
 static func fill(template: String, args: Dictionary) -> String:
 	var result: String = template
 	for key in args:
-		result = result.replace("{" + str(key) + "}", str(args[key]))
+		result = result.replace("{" + str(key) + "}", shown(args[key]))
 	return result
+
+
+## `value` as text for a player. JSON numbers arrive as floats, and Godot 4.4+
+## writes a whole float as "40.0" where it used to write "40".
+static func shown(value: Variant) -> String:
+	if value is float and is_finite(value) and value == floorf(value) and absf(value) < 1.0e15:
+		return str(int(value))
+	return str(value)
 
 
 ## A label in the pseudo-language; `{placeholders}` are kept as they are.
