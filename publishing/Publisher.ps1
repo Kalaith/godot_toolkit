@@ -20,7 +20,7 @@
 # files beside the executable.
 Set-StrictMode -Version Latest
 
-$script:WebFiles = @('index.html', 'index.js', 'index.wasm', 'index.pck', 'index.worker.js', 'index.audio.worklet.js')
+$script:WebFiles = @('index.html', 'index.js', 'index.wasm', 'index.pck', 'index.audio.worklet.js')
 
 function Write-PublishJson($Path, $Value) {
     [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
