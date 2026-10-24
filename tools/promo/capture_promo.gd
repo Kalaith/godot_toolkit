@@ -1,19 +1,33 @@
 extends SceneTree
-## Shared capture driver for any Godot 4 project. It loads the configured main
-## scene off-screen and samples real-time gameplay with bounded background encoding.
+## Shared capture driver for any Godot 4 project. It loads the plan's start
+## scene (the configured main scene by default) off-screen and samples
+## real-time gameplay with bounded background encoding.
 
 const DEFAULT_FPS: int = 30
+const MIN_PLAN_SECONDS: float = 15.0
+const MAX_PLAN_SECONDS: float = 180.0
+## A game opts in to plan `setup` and `hook` actions by naming a script with
+## `static func prepare(setup: Dictionary) -> String` and
+## `static func action(scene: Node, action: Dictionary) -> String` (each returns
+## "" or a reason for failing).
+const SETUP_SCRIPT_SETTING: String = "promotion/setup_script"
 
 var _plan_path: String = ""
 var _output_dir: String = ""
 var _failures: int = 0
 var _jobs: Array[Dictionary] = []
+var _user_files: String = ""
+var _hook: Script = null
 
 
 func _init() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
-	if args.size() != 3 or args[2] != "--promo-background":
-		push_error("Launch with Promoter record_game.py: <plan.json> <capture-output-dir> --promo-background")
+	if args.size() == 4 and args[3].begins_with("--user-files="):
+		_user_files = args[3].trim_prefix("--user-files=")
+	elif args.size() != 3:
+		args = PackedStringArray()
+	if args.size() < 3 or args[2] != "--promo-background":
+		push_error("Launch with Promoter record_game.py: <plan.json> <capture-output-dir> --promo-background [--user-files=<dir>]")
 		quit(2)
 		return
 	if not bool(ProjectSettings.get_setting("promotion/background_capture_safe", false)):
@@ -50,19 +64,44 @@ func _run() -> void:
 	for shot_value in shots:
 		if typeof(shot_value) == TYPE_DICTIONARY:
 			total_seconds += float(shot_value.get("seconds", 0.0))
-	if total_seconds < 15.0 or total_seconds > 30.0:
-		push_error("Promo plans must total between 15 and 30 seconds.")
+	if total_seconds < MIN_PLAN_SECONDS or total_seconds > MAX_PLAN_SECONDS:
+		push_error("Promo plans must total between %d and %d seconds." % [MIN_PLAN_SECONDS, MAX_PLAN_SECONDS])
 		quit(2)
 		return
 
-	var main_scene_path: String = str(ProjectSettings.get_setting("application/run/main_scene", ""))
+	if not _user_files.is_empty():
+		var copy_error: String = _copy_tree(_user_files, "user://")
+		if not copy_error.is_empty():
+			push_error("Could not copy the save fixture into user://: %s" % copy_error)
+			quit(2)
+			return
+	var setup_value: Variant = plan.get("setup", {})
+	if typeof(setup_value) != TYPE_DICTIONARY:
+		push_error("Promo plan setup must be a JSON object.")
+		quit(2)
+		return
+	var setup: Dictionary = setup_value
+	if not setup.is_empty() or _plan_uses_hook(plan):
+		var hook_error: String = _load_hook()
+		if hook_error.is_empty() and not setup.is_empty():
+			hook_error = str(_hook.call("prepare", setup))
+		if not hook_error.is_empty():
+			push_error("Promo setup failed: %s" % hook_error)
+			quit(2)
+			return
+
+	var main_scene_path: String = str(plan.get("scene", ProjectSettings.get_setting("application/run/main_scene", "")))
 	if main_scene_path.is_empty():
 		push_error("This Godot project has no application/run/main_scene configured.")
 		quit(2)
 		return
+	if not main_scene_path.begins_with("res://") or not ResourceLoader.exists(main_scene_path):
+		push_error("The promo start scene must be an existing res:// scene: %s" % main_scene_path)
+		quit(2)
+		return
 	var main_scene_resource: Resource = load(main_scene_path)
 	if not main_scene_resource is PackedScene:
-		push_error("The configured main scene could not be loaded: %s" % main_scene_path)
+		push_error("The start scene could not be loaded: %s" % main_scene_path)
 		quit(2)
 		return
 
@@ -76,7 +115,7 @@ func _run() -> void:
 		_apply_action(action, setup_releases)
 	await process_frame
 	for action_name in setup_releases:
-		Input.action_release(action_name)
+		_set_action(action_name, false)
 	await create_timer(maxf(float(settle_frames) / fps, 0.001)).timeout
 
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
@@ -98,8 +137,11 @@ func _run() -> void:
 			_failures += 1
 			push_error("Shot %s must be no longer than 30 seconds." % shot_name)
 			continue
+		# An unrecorded shot lets the game run (say, through a night at high speed) between filmed shots.
+		var record: bool = bool(shot.get("record", true))
 		var shot_dir: String = _output_dir.path_join(shot_name)
-		DirAccess.make_dir_recursive_absolute(shot_dir)
+		if record:
+			DirAccess.make_dir_recursive_absolute(shot_dir)
 		var actions_by_frame: Dictionary = {}
 		var actions: Array = shot.get("actions", [])
 		for action_value in actions:
@@ -117,11 +159,26 @@ func _run() -> void:
 				actions_by_frame[frame] = []
 			actions_by_frame[frame].append(action)
 
-		await _record_shot(shot_dir, seconds, fps, actions_by_frame)
+		await _record_shot(shot_dir, seconds, fps, actions_by_frame, record)
 
 
 	print("GODOT PROMO CAPTURE COMPLETE: %d failures" % _failures)
 	quit(0 if _failures == 0 else 1)
+
+
+## Update polled action state and also deliver an InputEventAction, so games
+## that toggle UI from _input/_unhandled_input (event.is_action_pressed) react
+## the same way they would to a real key press.
+func _set_action(action_name: String, pressed: bool) -> void:
+	if pressed:
+		Input.action_press(action_name)
+	else:
+		Input.action_release(action_name)
+	var event := InputEventAction.new()
+	event.action = action_name
+	event.pressed = pressed
+	event.strength = 1.0 if pressed else 0.0
+	Input.parse_input_event(event)
 
 
 func _apply_action(action: Dictionary, auto_release_actions: Array[String]) -> void:
@@ -132,7 +189,7 @@ func _apply_action(action: Dictionary, auto_release_actions: Array[String]) -> v
 			_failures += 1
 			push_error("Unknown InputMap action: %s" % action_name)
 			return
-		Input.action_press(action_name)
+		_set_action(action_name, true)
 		if kind == "tap":
 			auto_release_actions.append(action_name)
 	elif kind == "release":
@@ -140,7 +197,12 @@ func _apply_action(action: Dictionary, auto_release_actions: Array[String]) -> v
 			_failures += 1
 			push_error("Unknown InputMap action: %s" % action_name)
 			return
-		Input.action_release(action_name)
+		_set_action(action_name, false)
+	elif kind == "hook":
+		var hook_error: String = "the game declares no %s" % SETUP_SCRIPT_SETTING if _hook == null else str(_hook.call("action", current_scene, action))
+		if not hook_error.is_empty():
+			_failures += 1
+			push_error("Promo hook action failed: %s" % hook_error)
 	elif kind == "click":
 		var position := Vector2(float(action.get("x", 0.0)), float(action.get("y", 0.0)))
 		var button := int(action.get("button", MOUSE_BUTTON_LEFT))
@@ -159,10 +221,49 @@ func _apply_action(action: Dictionary, auto_release_actions: Array[String]) -> v
 		push_error("Unsupported promo action type: %s" % kind)
 
 
+func _plan_uses_hook(plan: Dictionary) -> bool:
+	var actions: Array = plan.get("setupActions", []).duplicate()
+	for shot_value in plan.get("shots", []):
+		if typeof(shot_value) == TYPE_DICTIONARY:
+			actions.append_array(shot_value.get("actions", []))
+	for action in actions:
+		if typeof(action) == TYPE_DICTIONARY and str(action.get("type", "")) == "hook":
+			return true
+	return false
+
+
+func _load_hook() -> String:
+	var path: String = str(ProjectSettings.get_setting(SETUP_SCRIPT_SETTING, ""))
+	if path.is_empty():
+		return "this game declares no %s, so plans cannot use setup or hook actions" % SETUP_SCRIPT_SETTING
+	var script: Resource = load(path)
+	if not script is Script:
+		return "the promo setup script could not be loaded: %s" % path
+	_hook = script
+	return ""
+
+
+## Copy a save fixture into the isolated profile before the game starts.
+func _copy_tree(from: String, to: String) -> String:
+	var directory := DirAccess.open(from)
+	if directory == null:
+		return "cannot open %s" % from
+	DirAccess.make_dir_recursive_absolute(to)
+	for name in directory.get_directories():
+		var nested: String = _copy_tree(from.path_join(name), to.path_join(name))
+		if not nested.is_empty():
+			return nested
+	for name in directory.get_files():
+		var error: int = DirAccess.copy_absolute(from.path_join(name), to.path_join(name))
+		if error != OK:
+			return "cannot copy %s (error %d)" % [name, error]
+	return ""
+
+
 ## Disable VSync only in this isolated run: waiting for presentation during GPU
 ## readback was stalling the game. Encoding/disk writes use at most two workers;
 ## if overloaded, skip a capture slot instead of blocking or growing a queue.
-func _record_shot(directory: String, seconds: float, fps: int, actions: Dictionary) -> void:
+func _record_shot(directory: String, seconds: float, fps: int, actions: Dictionary, record: bool = true) -> void:
 	var releases: Array[String] = []
 	var frame_count: int = roundi(seconds * fps)
 	var previous_slot: int = -1
@@ -178,7 +279,7 @@ func _record_shot(directory: String, seconds: float, fps: int, actions: Dictiona
 		longest_frame = maxi(longest_frame, now - last_frame)
 		last_frame = now
 		for action_name in releases:
-			Input.action_release(action_name)
+			_set_action(action_name, false)
 		releases.clear()
 		var elapsed: float = (Time.get_ticks_usec() - start) / 1000000.0
 		if elapsed >= seconds:
@@ -190,6 +291,8 @@ func _record_shot(directory: String, seconds: float, fps: int, actions: Dictiona
 			for action in actions.get(due, []):
 				_apply_action(action, releases)
 		previous_slot = slot
+		if not record:
+			continue
 		await RenderingServer.frame_post_draw
 		_collect_jobs(false)
 		if _jobs.size() >= 2:
@@ -202,6 +305,9 @@ func _record_shot(directory: String, seconds: float, fps: int, actions: Dictiona
 		_jobs.append({"task": task, "result": result})
 		samples.append(slot)
 	var elapsed_seconds: float = (Time.get_ticks_usec() - start) / 1000000.0
+	if not record:
+		print("GODOT PROMO GAP %s: %.3fs unrecorded" % [directory.get_file(), elapsed_seconds])
+		return
 	var game_fps: float = (Engine.get_process_frames() - start_frames) / elapsed_seconds
 	_collect_jobs(true)
 	if samples.is_empty():

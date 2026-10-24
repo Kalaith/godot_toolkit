@@ -1,4 +1,4 @@
-# Shared publishing functions for Godot 4.7.2 games: export, verified build
+# Shared publishing functions for Godot 4.7.x games: export, verified build
 # manifests, WebHatchery deployment (filesystem and FTP), Project Roost
 # records and itch.io pushes. Dot-source it from a game's publish.ps1 and
 # publish-itch.ps1 (see templates/). No work runs when loaded.
@@ -7,7 +7,7 @@
 #   slug           lowercase id; deploys to <root>/games/<slug>
 #   display_name   shown on the download page and in Project Roost
 #   description
-#   godot_version  must be 4.7.2
+#   godot_version  must be a 4.7 release, e.g. 4.7.2
 #   executable     Windows executable name (default: display name in PascalCase + .exe)
 #   targets        ["web", "windows"] or ["windows"] (default: web when itch has an html5 channel)
 #   itch_target    owner/game
@@ -39,7 +39,7 @@ function Get-PublishProject([string]$ProjectDir) {
     }
     $config = Get-Content -LiteralPath (Join-Path $root 'publish.json') -Raw | ConvertFrom-Json
     if ($config.slug -notmatch '^[a-z0-9][a-z0-9_-]*$') { throw 'Invalid project slug.' }
-    if ($config.godot_version -ne '4.7.2') { throw 'This publisher is validated for Godot 4.7.2.' }
+    if ($config.godot_version -notmatch '^4\.7\.\d+$') { throw 'This publisher is validated for Godot 4.7.x.' }
     if ($config.itch_target -notmatch '^[a-z0-9_-]+/[a-z0-9_-]+$') { throw 'Invalid itch target; use owner/game.' }
     $channels = Get-PublishProperty $config 'itch_channels' ([pscustomobject]@{})
     $targets = @(Get-PublishProperty $config 'targets' @())
@@ -159,11 +159,15 @@ function Invoke-PublishTool([string]$Executable, [string[]]$Arguments) {
 # then the installed copy in Program Files.
 function Resolve-PublishGodot($Info, [string]$Requested) {
     if (-not $Requested) { $Requested = $env:GODOT_EXE }
-    if (-not $Requested) { $Requested = 'C:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe' }
-    if (-not (Test-Path -LiteralPath $Requested -PathType Leaf)) { throw 'Standard Godot 4.7.2 not found. Pass -GodotExe or set GODOT_EXE.' }
+    if (-not $Requested) {
+        $installed = Get-ChildItem -Path 'C:\Program Files\Godot' -Filter 'Godot_v4.7.*-stable_win64_console.exe' -ErrorAction SilentlyContinue |
+            Sort-Object { [version]($_.Name -replace '^Godot_v(\d+\.\d+(\.\d+)?)-.*', '$1') } -Descending | Select-Object -First 1
+        if ($installed) { $Requested = $installed.FullName }
+    }
+    if (-not (Test-Path -LiteralPath $Requested -PathType Leaf)) { throw 'Standard Godot 4.7.x not found. Pass -GodotExe or set GODOT_EXE.' }
     $version = (& $Requested --headless --version | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $version -notmatch '^4\.7\.2\.stable\.' -or $version -match 'mono') {
-        throw "Use the standard (non-mono) Godot 4.7.2 editor for exports. Found: $version"
+    if ($LASTEXITCODE -ne 0 -or $version -notmatch '^4\.7\.\d+\.stable\.' -or $version -match 'mono') {
+        throw "Use the standard (non-mono) Godot 4.7.x editor for exports. Found: $version"
     }
     return (Resolve-Path -LiteralPath $Requested).Path
 }

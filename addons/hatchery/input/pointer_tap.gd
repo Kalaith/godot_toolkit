@@ -61,10 +61,10 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventScreenDrag and event.index == _pointer:
 		if event.position.distance_to(_pressed_at) > slop:
 			cancel()
-	elif event is InputEventMouseButton and event.device != -1:
+	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION:
 		if event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and _pointer == MOUSE_POINTER:
 			_finish(event.position)
-	elif event is InputEventMouseMotion and event.device != -1 and _pointer == MOUSE_POINTER:
+	elif event is InputEventMouseMotion and event.device != InputEvent.DEVICE_ID_EMULATION and _pointer == MOUSE_POINTER:
 		if event.position.distance_to(_pressed_at) > slop:
 			cancel()
 
@@ -72,7 +72,7 @@ func _input(event: InputEvent) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch and event.pressed and _touches.size() == 1:
 		_begin(event.index, event.position)
-	elif event is InputEventMouseButton and event.device != -1:
+	elif event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION:
 		if event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			_begin(MOUSE_POINTER, event.position)
 

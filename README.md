@@ -1,6 +1,6 @@
 # Godot Toolkit
 
-Shared GDScript and publishing tooling for WebHatchery's Godot 4.7.2 games
+Shared GDScript and publishing tooling for WebHatchery's Godot 4.7.x games
 (`bound_god`, `small_following`, `spiritwright` and the games after them). It
 collects what those games each wrote for themselves: key and gamepad
 rebinding, preferences, crash-safe saves, balance and text catalogs, data
@@ -73,7 +73,7 @@ timestamps or size suffixes.
 
 ## Validation
 
-From this folder, with the standard Godot 4.7.2 console editor:
+From this folder, with the standard Godot 4.7 console editor:
 
 ```powershell
 $godot = 'C:\Program Files\Godot\Godot_v4.7.2-stable_win64_console.exe'

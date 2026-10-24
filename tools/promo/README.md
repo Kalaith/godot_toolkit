@@ -13,15 +13,32 @@ capture tool.
   build.
 - A list of timed shots with a caption and stable feature IDs.
 - `InputMap` action presses, releases and taps, plus mouse clicks at viewport
-  coordinates.
+  coordinates. Actions update polled input state and are also delivered as
+  `InputEventAction` events, so UI toggled from `_unhandled_input` reacts.
 - Real-time input scheduling, optional `setupActions`, and an initial settle period before the shots begin.
 - An off-screen, non-focused window; capture-only VSync disabling and a 60 FPS game cap.
 - At most two JPEG encoding jobs, so encoding and disk writes cannot block the game thread.
+- A plan `scene` (a `res://` scene to start in instead of the main scene) and a save fixture copied into `user://` before the game starts (`--user-files=<dir>`, passed by Promoter for a plan's `saveFixture`).
+- A game-owned setup hook for plan `setup` and `hook` actions (below).
+- Unrecorded shots (`"record": false`) that let the game run between filmed shots. Plans may total up to 180 seconds; each shot is at most 30.
 
 The shot plan and project-relative source file list are kept in Promoter's
 ignored `data/media/godot/<project-key>/promo/` folder. The shared driver is
 invoked through `scripts/godot-promo.ps1`; do not run it against the toolkit's
 own project.
+
+## Game setup hook
+
+When a feature cannot be reached repeatably from a fresh title screen (a particular seed, a later save, another map), the game may declare a hook in `project.godot`:
+
+```ini
+[promotion]
+setup_script="res://scripts/presentation/promo_setup.gd"
+```
+
+The script provides `static func prepare(setup: Dictionary) -> String`, called with the plan's `setup` object before the start scene loads, and `static func action(scene: Node, action: Dictionary) -> String`, called for each `{"type": "hook", ...}` action with the current scene. Each returns `""` or the reason it failed; a failure stops the capture. Plans using `setup` or hook actions are refused when no hook is declared.
+
+Keep hooks honest: use the routes a player has (new world from a seed, load a slot, travel the game's normal way, let time pass by simulating it, set preferences, game speed, camera and UI). Never stamp buildings, grant resources or edit world state to stage a shot; footage must show what the game actually does. Bound God's `promo_setup.gd` is the reference.
 
 ## Game README notes
 
@@ -41,8 +58,8 @@ Describe the player's visible route, not private implementation details. The
 agent should inspect the project and verify the route before recording it in a
 plan. The driver can use ordinary input; when a project needs bespoke state
 mutation to show a feature, do not add a project-specific capture script as a
-first step. Ask whether a normal gameplay route or an approved test build can
-show it.
+first step. Ask whether a normal gameplay route, a save fixture or the game's
+setup hook can show it.
 
 ## Promoter commands
 
