@@ -87,7 +87,32 @@ errors.append_array(text.problems())
 **`det.gd`** gives seeded `pick`, `weighted_index`, `weighted_key`,
 `shuffle`, `chance`, `fork(seed, stream)` (independent per-system streams),
 and `sort_by(items, score, id)`, a sort that tie-breaks on a stable id
-because `sort_custom` is not stable.
+because `sort_custom` is not stable. `save_state(rng)` / `load_state(rng, data)`
+turn a generator's position into JSON-safe text and back (a 64-bit state loses
+digits as a JSON number), so a loaded run carries on with the same draws.
+
+**`sim_clock.gd`** is a whole-number tick clock: days from 1, an hour clock on
+a 24-hour face whatever the length of a day in ticks, and named periods
+("morning", "night") derived from the hour, wrapping past midnight. `advance`
+returns how many day boundaries were crossed, so a daily tick is one `if`.
+
+```gdscript
+var clock := SimClock.new(720, SimClock.tick_at(720, 1, 7.0))
+clock.set_periods([{"id": "morning", "from": 5.0}, {"id": "night", "from": 21.0}])
+if clock.advance() > 0: daily_tick()
+label.text = "Day %d  %s  (%s)" % [clock.day(), clock.text(), clock.period()]
+```
+
+**`effect_buffer.gd`** is the deferred-effects pattern for simulations: actors
+read one snapshot, `push(order, effect)` what they want, and `apply(handler)`
+runs the batch once in a canonical order (the pusher's order, then push order),
+so the order actors were visited in cannot bias the result. Effects pushed
+while applying wait for the next batch.
+
+**`data_files.gd`** is a registry of a game's JSON catalogs: each file read
+once and checked for its `schema_version`, problems collected (never
+defaulted away) in `errors`, and `find`/`has_id`/`ids` lookups by `"id"`.
+Shape rules stay with the game, written with `DataRules`.
 
 ## storage
 
@@ -225,7 +250,9 @@ func modules() -> Array[String]:
 scripted screenshot tours (`open_scene`, `frames`, `seconds`, `shot`), writing
 flat `<name>.png` files to `docs/verification/`. **`capture_paths.gd`**:
 `CapturePaths.file(label)` is that folder's one path rule, for captures made
-outside the runner.
+outside the runner. **`parse_runner.gd`**: loads every script under the folders
+a game lists (`folders()`), so a parse error fails even where nothing runs the
+script yet; a game's `tools/parse_all.gd` is four lines.
 
 ## publishing
 

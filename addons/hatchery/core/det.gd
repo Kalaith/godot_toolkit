@@ -72,3 +72,21 @@ static func fork(seed_value: int, stream: String) -> RandomNumberGenerator:
 	var child := RandomNumberGenerator.new()
 	child.seed = hash([seed_value, stream])
 	return child
+
+
+## A generator's position as text, safe to put in JSON (a 64-bit state loses
+## digits as a JSON number). Restore it with `load_state`.
+static func save_state(rng: RandomNumberGenerator) -> Dictionary:
+	return {"seed": str(rng.seed), "state": str(rng.state)}
+
+
+## Puts `rng` back where `save_state` found it. False, changing nothing, for
+## data that is not a saved state.
+static func load_state(rng: RandomNumberGenerator, data: Variant) -> bool:
+	if not data is Dictionary or not data.get("seed") is String or not data.get("state") is String:
+		return false
+	if not String(data.seed).is_valid_int() or not String(data.state).is_valid_int():
+		return false
+	rng.seed = String(data.seed).to_int()
+	rng.state = String(data.state).to_int()
+	return true

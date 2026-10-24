@@ -6,6 +6,7 @@ extends "res://addons/hatchery/testing/check_runner.gd"
 func modules() -> Array[String]:
 	return [
 		"res://tools/checks/checks_core.gd",
+		"res://tools/checks/checks_sim.gd",
 		"res://tools/checks/checks_storage.gd",
 		"res://tools/checks/checks_input.gd",
 		"res://tools/checks/checks_misc.gd",

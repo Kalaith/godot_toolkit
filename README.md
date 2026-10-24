@@ -4,9 +4,10 @@ Shared GDScript and publishing tooling for WebHatchery's Godot 4.7.x games
 (`bound_god`, `small_following`, `spiritwright` and the games after them). It
 collects what those games each wrote for themselves: key and gamepad
 rebinding, preferences, crash-safe saves, balance and text catalogs, data
-validation, seeded randomness, placeholder audio and drawing, a code-built UI
-kit with a ready-made settings page, the headless check runner, and the export
-and deploy scripts.
+validation, seeded randomness, a tick clock, a deferred effects buffer and a
+data-file registry for simulations, placeholder audio and drawing, a code-built
+UI kit with a ready-made settings page, the headless check and parse runners,
+and the export and deploy scripts.
 
 This folder is a library with its own small Godot project for checks. It is
 not a game. It has no export, no `publish.ps1` of its own, and no web page.
