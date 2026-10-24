@@ -32,7 +32,7 @@ Every game's saves now survive a torn write (json save)
 
 ## Shared WebHatchery Godot standards
 
-This section is identical in the AGENTS.md of every WebHatchery Godot project (`auto_resolved`, `bound_god`, `dreamspire`, `personal_best`, `small_following`, `spiritwright`, `godot_toolkit`). Change it in all seven together; project-specific rules go in the sections above.
+This section is identical in the AGENTS.md of every WebHatchery Godot project. Change it in all of them together; project-specific rules go in the sections above.
 
 ### Working
 
