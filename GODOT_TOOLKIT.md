@@ -26,6 +26,8 @@ by path; none declares a `class_name`.
 | `input/pointer_tap.gd` | — | `scripts/village_input.gd` | — |
 | `draw/shapes.gd` | — | `scripts/draw_shapes.gd` | map/golem drawing |
 | `settings/display.gd` | fullscreen toggle, UI scale | fullscreen, web exit | — |
+| `settings/engine_settings.gd` | — | — | `game_settings.gd` (also personal_best, auto_resolved, dreamspire, the_last_hearth) |
+| `ui/settings_host.gd` | — | — | `main.gd` `open_settings`/`close_settings` (also personal_best) |
 | `testing/check_runner.gd`, `testing/expect.gd` | `tools/sim_checks.gd` | — (no tests by policy) | `tools/sim_checks.gd` |
 | `testing/capture_runner.gd`, `testing/capture_paths.gd` | `presentation/capture*.gd` | — | `tools/capture.gd` |
 | `publishing/Publisher.ps1` | `tools/publishing/Publisher.ps1` | `tools/publishing/Publisher.ps1` | `tools/publishing/Publisher.ps1` |
@@ -172,6 +174,19 @@ Levels.apply_buses(settings.values, {"Master": "master", "Music": "music"})
 Display.set_fullscreen(settings.values.fullscreen)
 ```
 
+**`engine_settings.gd`** replaces that last pair of lines and the `apply(key)`
+match each game wrote: list the buses, and `apply`, `apply_all`, `ui_scale` and
+`slider_text` (the interface size read out as a scale) do the rest. Settings only
+the game understands go in its `extra` callable.
+
+```gdscript
+var engine := EngineSettings.new(settings, get_tree(), {"Master": "master", "Music": "music"})
+engine.scale_min = 0.75
+engine.apply_all()
+page.applied.connect(engine.apply)
+page.slider_text = engine.slider_text
+```
+
 ## audio
 
 **`synth.gd`**: bound_god's generated sounds (tones with partials and noise,
@@ -227,6 +242,10 @@ resizing the page under the pointer.
 **`screen_switcher.gd`**: whole-screen swaps with a Back target per screen
 (spiritwright's `_swap`). **`focus.gd`**: focus the first control on show and
 find the topmost open overlay for gamepad play.
+
+**`settings_host.gd`** opens a settings page over a host node and gives focus back
+to the control that had it when the page closes (`open(make_page)` returns the
+page, or null when one is already open).
 
 ## draw
 
